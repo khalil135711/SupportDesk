@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IT-Support Desk</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#1b2330;--mu:#6b7686;--bd:#dde2ea;--ac:#2563eb;--ok:#16a34a;--wa:#d97706;--er:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#1a212c;--tx:#e6ebf2;--mu:#93a0b2;--bd:#2b3544;--ac:#4f8cff;--ok:#34d399;--wa:#fbbf24;--er:#f87171}}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1}
+main{max-width:1100px;margin:0 auto;padding:20px}
+button,input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+button{cursor:pointer}button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:var(--er)}
+textarea{width:100%;min-height:80px}input,select{width:100%}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}.stat b{font-size:26px;display:block}.stat span{color:var(--mu);font-size:13px}
+.bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}.bar input{flex:1;min-width:180px}.bar select{width:auto}
+.t{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;gap:12px;align-items:center}
+.t:hover{border-color:var(--ac)}.t .m{flex:1;min-width:0}.t .m b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.t small{color:var(--mu)}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.Offen{color:var(--er)}.InArbeit{color:var(--wa)}.Gelöst{color:var(--ok)}.Geschlossen{color:var(--mu)}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:20px;z-index:5}
+.modal.on{display:flex}.box{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:760px;border:1px solid var(--bd)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row.three{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:600px){.row,.row.three{grid-template-columns:1fr}}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.note{border-left:3px solid var(--ac);padding:4px 10px;margin:6px 0;background:var(--bg);border-radius:0 8px 8px 0}.note small{color:var(--mu)}
+#jitsi{height:480px;margin-top:12px;border-radius:10px;overflow:hidden;background:#000;display:none}
+.hint{font-size:13px;color:var(--mu);margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛠️ IT-Support Desk</h1>
+  <button class="p" onclick="openTicket()">+ Neues Ticket</button>
+  <button onclick="openSettings()">⚙️ Einstellungen</button>
+</header>
+<main>
+  <div class="stats" id="stats"></div>
+  <div class="bar">
+    <input id="q" placeholder="Suchen (Titel, Kunde, ID)…" oninput="render()">
+    <select id="fs" onchange="render()"><option value="">Alle Status</option><option>Offen</option><option>In Arbeit</option><option>Gelöst</option><option>Geschlossen</option></select>
+    <select id="fp" onchange="render()"><option value="">Alle Prioritäten</option><option>Niedrig</option><option>Normal</option><option>Hoch</option><option>Kritisch</option></select>
+  </div>
+  <div id="list"></div>
+</main>
+
+<div class="modal" id="mt"><div class="box">
+  <h2 id="mtitle">Ticket</h2>
+  <label>Titel</label><input id="f_title">
+  <div class="row"><div><label>Kunde / Name</label><input id="f_cust"></div><div><label>Kontakt (E-Mail/Telefon)</label><input id="f_contact"></div></div>
+  <div class="row three">
+    <div><label>Kategorie</label><select id="f_cat"><option>Hardware</option><option>Software</option><option>Netzwerk</option><option>Konto/Passwort</option><option>E-Mail</option><option>Sonstiges</option></select></div>
+    <div><label>Priorität</label><select id="f_prio"><option>Niedrig</option><option selected>Normal</option><option>Hoch</option><option>Kritisch</option></select></div>
+    <div><label>Status</label><select id="f_stat"><option>Offen</option><option>In Arbeit</option><option>Gelöst</option><option>Geschlossen</option></select></div>
+  </div>
+  <label>Beschreibung</label><textarea id="f_desc"></textarea>
+  <div class="row"><div><label>Zugewiesen an</label><input id="f_ass"></div><div><label>RustDesk-ID des Kunden (kostenlos &amp; Open Source)</label><input id="f_rid" placeholder="z. B. 123 456 789"></div></div>
+
+  <div id="extra">
+    <label>Notizen / Verlauf</label><div id="notes"></div>
+    <div style="display:flex;gap:8px;margin-top:6px"><input id="f_note" placeholder="Notiz hinzufügen…"><button onclick="addNote()" style="width:auto">Hinzufügen</button></div>
+    <div class="acts">
+      <button class="p" onclick="startCall()">📹 Videositzung starten (Jitsi)</button>
+      <button onclick="copyInvite()">🔗 Kunden-Link kopieren</button>
+      <button onclick="openRemote()">🖥️ Fernwartung starten (RustDesk)</button>
+    </div>
+    <div class="hint">Kunde öffnet den Link → Bildschirm freigeben (Jitsi „Bildschirm teilen“) oder Fernsteuerung per RustDesk (Kunde nennt dir seine ID).</div>
+    <div id="jitsi"></div>
+  </div>
+  <div class="acts" style="justify-content:space-between">
+    <button class="d" id="delbtn" onclick="delTicket()">Löschen</button>
+    <span><button onclick="closeM('mt')">Abbrechen</button> <button class="p" onclick="saveTicket()">Speichern</button></span>
+  </div>
+</div></div>
+
+<div class="modal" id="ms"><div class="box">
+  <h2>Einstellungen</h2>
+  <label>Jitsi-Server (Domain)</label><input id="s_dom" placeholder="meet.jit.si">
+  <div class="hint">Öffentliches meet.jit.si begrenzt Einbettungen. Für Dauerbetrieb: eigener Jitsi-Server oder 8x8 JaaS.</div>
+  <label>Dein Name (für Notizen)</label><input id="s_name">
+  <div class="acts">
+    <button onclick="exportData()">⬇️ Export (JSON)</button>
+    <button onclick="document.getElementById('imp').click()">⬆️ Import</button>
+    <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+  <div class="acts" style="justify-content:flex-end"><button onclick="closeM('ms')">Abbrechen</button><button class="p" onclick="saveSettings()">Speichern</button></div>
+</div></div>
+
+<script>
+const LS = {
+  get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+};
+let tickets = LS.get('itsd.tickets', []);
+let settings = LS.get('itsd.settings', { domain: 'meet.jit.si', name: 'Support' });
+let cur = null, api = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const save = () => LS.set('itsd.tickets', tickets);
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+
+function render(){
+  const q = $('q').value.toLowerCase(), fs = $('fs').value, fp = $('fp').value;
+  const cnt = s => tickets.filter(t => t.status === s).length;
+  $('stats').innerHTML = [['Offen',cnt('Offen')],['In Arbeit',cnt('In Arbeit')],['Gelöst',cnt('Gelöst')],['Gesamt',tickets.length]]
+    .map(([l,n]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+  const list = tickets.filter(t => (!fs || t.status === fs) && (!fp || t.prio === fp) &&
+    (!q || [t.title, t.cust, t.id, t.desc].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => b.created - a.created);
+  $('list').innerHTML = list.length ? list.map(t => `
+    <div class="t" onclick="openTicket('${t.id}')">
+      <div class="m"><b>${esc(t.id)} · ${esc(t.title)}</b><small>${esc(t.cust)} · ${esc(t.cat)} · Prio ${esc(t.prio)} · ${new Date(t.created).toLocaleString('de-DE')}</small></div>
+      <span class="badge ${t.status.replace(' ','')}">${esc(t.status)}</span></div>`).join('')
+    : '<p style="color:var(--mu);text-align:center;padding:40px">Keine Tickets. Lege das erste an.</p>';
+}
+
+function openTicket(id){
+  cur = id ? tickets.find(t => t.id === id) : null;
+  const t = cur || { title:'', cust:'', contact:'', cat:'Hardware', prio:'Normal', status:'Offen', desc:'', ass:'', rid:'', notes:[] };
+  $('mtitle').textContent = cur ? `Ticket ${t.id}` : 'Neues Ticket';
+  $('f_title').value = t.title; $('f_cust').value = t.cust; $('f_contact').value = t.contact;
+  $('f_cat').value = t.cat; $('f_prio').value = t.prio; $('f_stat').value = t.status;
+  $('f_desc').value = t.desc; $('f_ass').value = t.ass; $('f_rid').value = t.rid;
+  $('extra').style.display = cur ? 'block' : 'none';
+  $('delbtn').style.visibility = cur ? 'visible' : 'hidden';
+  renderNotes(); endCall(); $('mt').classList.add('on');
+}
+function saveTicket(){
+  const title = $('f_title').value.trim();
+  if (!title) { $('f_title').focus(); return; }
+  const d = { title, cust:$('f_cust').value, contact:$('f_contact').value, cat:$('f_cat').value, prio:$('f_prio').value,
+    status:$('f_stat').value, desc:$('f_desc').value, ass:$('f_ass').value, rid:$('f_rid').value };
+  if (cur) Object.assign(cur, d);
+  else tickets.push({ id:'T-' + String(tickets.length + 1).padStart(4,'0'), created:Date.now(), notes:[], room:'', ...d });
+  save(); closeM('mt'); render();
+}
+function delTicket(){
+  if (cur && confirm('Ticket wirklich löschen?')) { tickets = tickets.filter(t => t !== cur); save(); closeM('mt'); render(); }
+}
+function renderNotes(){
+  $('notes').innerHTML = cur ? (cur.notes.length ? cur.notes.map(n =>
+    `<div class="note">${esc(n.text)}<br><small>${esc(n.by)} · ${new Date(n.at).toLocaleString('de-DE')}</small></div>`).join('')
+    : '<small style="color:var(--mu)">Noch keine Notizen.</small>') : '';
+}
+function addNote(){
+  const v = $('f_note').value.trim();
+  if (!v || !cur) return;
+  cur.notes.push({ text:v, by:settings.name, at:Date.now() }); $('f_note').value = ''; save(); renderNotes();
+}
+
+/* Jitsi */
+function roomName(){ if (!cur.room) { cur.room = 'ITSupport-' + cur.id + '-' + rnd(10); save(); } return cur.room; }
+function inviteLink(){ return `https://${settings.domain}/${roomName()}`; }
+function copyInvite(){
+  const l = inviteLink();
+  (navigator.clipboard?.writeText(l) ?? Promise.reject()).then(() => alert('Link kopiert:\n' + l)).catch(() => prompt('Link kopieren:', l));
+}
+function startCall(){
+  const box = $('jitsi'); endCall(); box.style.display = 'block';
+  const s = document.createElement('script');
+  s.src = `https://${settings.domain}/external_api.js`;
+  s.onload = () => {
+    api = new JitsiMeetExternalAPI(settings.domain, {
+      roomName: roomName(), parentNode: box, width:'100%', height:'100%',
+      userInfo: { displayName: settings.name },
+      configOverwrite: { prejoinPageEnabled:false, subject:`${cur.id} ${cur.title}` }
+    });
+  };
+  s.onerror = () => { box.style.display = 'none'; window.open(inviteLink(), '_blank'); };
+  document.head.appendChild(s);
+}
+function endCall(){ if (api) { api.dispose(); api = null; } $('jitsi').style.display = 'none'; $('jitsi').innerHTML = ''; }
+function openRemote(){
+  const id = $('f_rid').value.replace(/\s/g, '');
+  if (!id) return alert('Bitte zuerst die RustDesk-ID des Kunden eintragen.');
+  location.href = `rustdesk://${id}`;
+}
+
+/* Settings / Daten */
+function openSettings(){ $('s_dom').value = settings.domain; $('s_name').value = settings.name; $('ms').classList.add('on'); }
+function saveSettings(){
+  settings = { domain: $('s_dom').value.trim().replace(/^https?:\/\//,'').replace(/\/$/,'') || 'meet.jit.si', name: $('s_name').value.trim() || 'Support' };
+  LS.set('itsd.settings', settings); closeM('ms');
+}
+function exportData(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ tickets, settings }, null, 2)], { type:'application/json' }));
+  a.download = 'it-support-backup.json'; a.click();
+}
+function importData(e){
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { try { const d = JSON.parse(r.result); if (Array.isArray(d.tickets)) { tickets = d.tickets; save(); render(); alert('Import erfolgreich.'); } } catch { alert('Ungültige Datei.'); } };
+  r.readAsText(f);
+}
+function closeM(id){ if (id === 'mt') endCall(); $(id).classList.remove('on'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') ['mt','ms'].forEach(closeM); });
+render();
+</script>
+</body>
+</html>
